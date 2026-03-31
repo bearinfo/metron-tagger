@@ -111,6 +111,7 @@ class ProcessingConfig:
     skip_multiple: bool = False
     series_id: int | None = None
     ignore_existing: bool = False
+    ignore_tagged: bool = False
 
 
 @dataclass
@@ -534,18 +535,31 @@ class Talker:
     """
 
     def __init__(
-        self, username: str, password: str, metron_info: bool, comic_info: bool
+        self, username: str, password: str, metron_info: bool, comic_info: bool, api_call_delay: float = 0.0,
     ) -> None:
         """Initialize the Talker class with API credentials."""
         self.api = mokkari.api(username, password, user_agent=f"Metron-Tagger/{__version__}")
         self.metron_info = metron_info
         self.comic_info = comic_info
+        self.api_call_delay = max(api_call_delay, 0.0)
         self.match_results = OnlineMatchResults()
         self.metadata_extractor = MetadataExtractor()
         self.cover_matcher = CoverHashMatcher()
         self.metadata_mapper = MetadataMapper()
         self.ui = UIPresenter()
         self._stop_processing = False
+        self._last_api_call_time: float | None = None
+
+    def _execute_api_call(self, api_call: Callable[[], T]) -> T:
+        """Execute an API call while enforcing the configured inter-call delay."""
+        if self.api_call_delay > 0 and self._last_api_call_time is not None:
+            elapsed = time.monotonic() - self._last_api_call_time
+            remaining_delay = self.api_call_delay - elapsed
+            if remaining_delay > 0:
+                time.sleep(remaining_delay)
+
+        self._last_api_call_time = time.monotonic()
+        return api_call()
 
     def _retry_api_call(self, api_call: Callable[[], T]) -> T | None:
         """Retry an API call after a rate limit delay.
@@ -557,7 +571,7 @@ class Talker:
             The result of the API call, or None if an error occurred
         """
         try:
-            return api_call()
+            return self._execute_api_call(api_call)
         except RateLimitError as retry_error:
             # If we hit another short rate limit, wait and try once more silently
             if (
@@ -569,7 +583,7 @@ class Talker:
                 )
                 time.sleep(retry_error.retry_after + RATE_LIMIT_RETRY_BUFFER)
                 try:
-                    return api_call()
+                    return self._execute_api_call(api_call)
                 except (RateLimitError, ApiError) as final_error:
                     LOGGER.exception("Retry failed after second wait")
                     self.ui.print_error(f"Retry failed: {final_error!s}")
@@ -595,7 +609,7 @@ class Talker:
             The result of the API call, or None if an error occurred
         """
         try:
-            return api_call()
+            return self._execute_api_call(api_call)
         except RateLimitError as e:
             LOGGER.debug("Rate limit exceeded: %s", e)
 
@@ -912,6 +926,22 @@ class Talker:
 
         return (has_comic_rack and self.comic_info) or (has_metron_info and self.metron_info)
 
+    def _should_skip_tagged_metadata(self, args: Namespace, comic: Comic) -> bool:
+        """Check if file should be skipped because it has metadata with valid info source IDs.
+
+        Unlike --ignore-existing which skips all files with metadata, this only skips
+        files whose metadata contains recognized info source IDs (e.g. Metron, Comic Vine).
+        Files with metadata but without info source IDs will still be processed.
+        """
+        if not args.ignore_tagged:
+            return False
+
+        if existing_id_info := self._get_existing_metadata_id(comic):
+            _source, _id, _modified = existing_id_info
+            return True
+
+        return False
+
     def identify_comics(self, args: Namespace, file_list: list[Path]) -> None:
         """Identify and tag comics from a list of files."""
         # Reset stop flag at start of processing
@@ -927,6 +957,7 @@ class Talker:
             skip_multiple=args.skip_multiple,
             series_id=args.id,
             ignore_existing=args.ignore_existing,
+            ignore_tagged=args.ignore_tagged,
         )
 
         for fn in file_list:
@@ -941,6 +972,10 @@ class Talker:
 
             if self._should_skip_existing_metadata(args, comic):
                 self.ui.print_warning(f"{fn.name} has metadata. Skipping...")
+                continue
+
+            if self._should_skip_tagged_metadata(args, comic):
+                self.ui.print_warning(f"{fn.name} has metadata with info source IDs. Skipping...")
                 continue
 
             result = self._process_file(fn, config)

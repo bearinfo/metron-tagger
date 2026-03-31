@@ -23,8 +23,8 @@ class MetronTaggerSettings:
     """
 
     # Default configuration values
-    DEFAULT_CONFIG: ClassVar[dict[str, dict[str, str] | dict[str, int | bool | str]]] = {
-        "metron": {"user": "", "password": ""},
+    DEFAULT_CONFIG: ClassVar[dict[str, dict[str, str] | dict[str, int | float | bool | str]]] = {
+        "metron": {"user": "", "password": "", "api_call_delay": 0.0},
         "rename": {
             "rename_issue_number_padding": 3,
             "rename_use_smart_string_cleanup": True,
@@ -35,9 +35,9 @@ class MetronTaggerSettings:
 
     # Type mapping for configuration options
     TYPE_MAPPING: ClassVar[
-        dict[str, dict[str, type[str]] | dict[str, type[int | bool | str]]]
+        dict[str, dict[str, type[str]] | dict[str, type[int | float | bool | str]]]
     ] = {
-        "metron": {"user": str, "password": str},
+        "metron": {"user": str, "password": str, "api_call_delay": float},
         "rename": {
             "rename_issue_number_padding": int,
             "rename_use_smart_string_cleanup": bool,
@@ -156,7 +156,7 @@ class MetronTaggerSettings:
             raise ValueError(msg)
         return parts[0], parts[1]
 
-    def _convert_value(self, section: str, option: str, value: str) -> str | int | bool:
+    def _convert_value(self, section: str, option: str, value: str) -> str | int | float | bool:
         """Convert string value to appropriate type based on configuration schema.
 
         Args:
@@ -174,10 +174,12 @@ class MetronTaggerSettings:
                 return self.config.getboolean(section, option)
             if expected_type is int:
                 return self.config.getint(section, option)
+            if expected_type is float:
+                return self.config.getfloat(section, option)
 
         return value
 
-    def __getitem__(self, key: str) -> str | int | bool | None:
+    def __getitem__(self, key: str) -> str | int | float | bool | None:
         """Retrieve a setting value with type conversion.
 
         Args:
@@ -205,7 +207,7 @@ class MetronTaggerSettings:
             LOGGER.exception("Failed to convert configuration value")
             return None
 
-    def __setitem__(self, key: str, value: str | int | bool) -> None:
+    def __setitem__(self, key: str, value: str | int | float | bool) -> None:
         """Set a setting value with immediate persistence.
 
         Args:

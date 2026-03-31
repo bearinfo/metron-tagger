@@ -9,6 +9,7 @@ def test_settings(settings) -> None:
     # Make sure initial values are correct
     assert not config["metron.user"]
     assert not config["metron.password"]
+    assert config["metron.api_call_delay"] == 0.0
     assert not config["sort.directory"]
     assert config["rename.rename_issue_number_padding"] == 3
     assert config["rename.rename_use_smart_string_cleanup"] is True
@@ -17,6 +18,7 @@ def test_settings(settings) -> None:
     # Save the new values
     config["metron.user"] = user
     config["metron.password"] = dummy
+    config["metron.api_call_delay"] = 1.5
     config["rename.rename_issue_number_padding"] = padding
     config["rename.rename_use_smart_string_cleanup"] = str(cleanup)
     config["rename.rename_template"] = file_template
@@ -25,6 +27,7 @@ def test_settings(settings) -> None:
     new_config = settings
     assert new_config["metron.user"] == user
     assert new_config["metron.password"] == dummy
+    assert new_config["metron.api_call_delay"] == 1.5
     assert new_config["sort.directory"] == "/tmp/foo"  # NOQA: S108
     assert new_config["rename.rename_issue_number_padding"] == padding
     assert new_config["rename.rename_use_smart_string_cleanup"] == cleanup

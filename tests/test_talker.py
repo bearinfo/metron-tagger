@@ -848,6 +848,52 @@ def test_talker_should_skip_existing_metadata_false(mock_comic_class, talker):
     assert result is False
 
 
+@patch("metrontagger.talker.Comic")
+def test_talker_should_skip_tagged_metadata_true(mock_comic_class, talker):
+    """Test skipping file with metadata that has valid info source IDs."""
+    mock_comic = Mock()
+    mock_comic.has_metadata.return_value = True
+    mock_comic_class.return_value = mock_comic
+
+    args = Mock()
+    args.ignore_tagged = True
+
+    with patch.object(
+        talker, "_get_existing_metadata_id", return_value=(InfoSource.METRON, 123, None)
+    ):
+        result = talker._should_skip_tagged_metadata(args, mock_comic)
+    assert result is True
+
+
+@patch("metrontagger.talker.Comic")
+def test_talker_should_skip_tagged_metadata_false_no_id(mock_comic_class, talker):
+    """Test not skipping file with metadata but no info source IDs."""
+    mock_comic = Mock()
+    mock_comic.has_metadata.return_value = True
+    mock_comic_class.return_value = mock_comic
+
+    args = Mock()
+    args.ignore_tagged = True
+
+    with patch.object(talker, "_get_existing_metadata_id", return_value=None):
+        result = talker._should_skip_tagged_metadata(args, mock_comic)
+    assert result is False
+
+
+@patch("metrontagger.talker.Comic")
+def test_talker_should_skip_tagged_metadata_false_flag_off(mock_comic_class, talker):
+    """Test not skipping when ignore_tagged is False."""
+    mock_comic = Mock()
+    mock_comic.has_metadata.return_value = True
+    mock_comic_class.return_value = mock_comic
+
+    args = Mock()
+    args.ignore_tagged = False
+
+    result = talker._should_skip_tagged_metadata(args, mock_comic)
+    assert result is False
+
+
 @patch("metrontagger.talker.questionary.print")
 @patch("metrontagger.talker.create_print_title")
 def test_post_process_matches_displays_skipped(mock_create_title, mock_print, talker):
@@ -908,6 +954,7 @@ def test_identify_comics_with_skip_multiple_enabled(
 
     args = Mock()
     args.ignore_existing = False
+    args.ignore_tagged = False
     args.accept_only = False
     args.skip_multiple = True
     args.id = None
@@ -951,6 +998,7 @@ def test_identify_comics_with_skip_multiple_disabled(
 
     args = Mock()
     args.ignore_existing = False
+    args.ignore_tagged = False
     args.accept_only = False
     args.skip_multiple = False
     args.id = None
@@ -1073,6 +1121,7 @@ def test_talker_identify_comics_success(mock_comic_class, _, mock_create_title, 
 
     args = Mock()
     args.ignore_existing = False
+    args.ignore_tagged = False
     args.accept_only = False
     args.id = None
 
@@ -1146,6 +1195,24 @@ def test_handle_api_call_success(talker):
     result = talker._handle_api_call(mock_call)
     assert result == "success"
     mock_call.assert_called_once()
+
+
+@patch("metrontagger.talker.time.sleep")
+@patch("metrontagger.talker.time.monotonic")
+def test_handle_api_call_respects_configured_delay(mock_monotonic, mock_sleep, mock_api):
+    """Test that a configured delay is enforced between API calls."""
+    with patch("metrontagger.talker.mokkari.api", return_value=mock_api):
+        delayed_talker = Talker(
+            "username", "password", metron_info=True, comic_info=True, api_call_delay=2.0
+        )
+
+    mock_monotonic.side_effect = [10.0, 11.0, 11.0]
+    first_call = Mock(return_value="first")
+    second_call = Mock(return_value="second")
+
+    assert delayed_talker._handle_api_call(first_call) == "first"
+    assert delayed_talker._handle_api_call(second_call) == "second"
+    mock_sleep.assert_called_once_with(1.0)
 
 
 def test_handle_api_call_rate_limit_no_retry_after(talker):

@@ -7,6 +7,15 @@ import argparse
 from metrontagger import __version__
 
 
+def non_negative_float(value: str) -> float:
+    """Parse a non-negative float argument."""
+    parsed_value = float(value)
+    if parsed_value < 0:
+        msg = "must be greater than or equal to 0"
+        raise argparse.ArgumentTypeError(msg)
+    return parsed_value
+
+
 def make_parser() -> argparse.ArgumentParser:
     """Function to create the argument parser"""
     parser = argparse.ArgumentParser(
@@ -62,6 +71,12 @@ def make_parser() -> argparse.ArgumentParser:
         default=False,
     )
     parser.add_argument(
+        "--ignore-tagged",
+        help="Ignore files that have metadata with valid info source IDs (e.g. Metron or Comic Vine). Files with metadata but without info source IDs will still be processed.",
+        action="store_true",
+        default=False,
+    )
+    parser.add_argument(
         "--accept-only",
         help="Automatically accept the match when exactly one valid match is found.",
         action="store_true",
@@ -72,6 +87,12 @@ def make_parser() -> argparse.ArgumentParser:
         help="Skip files that have multiple matches instead of prompting for selection.",
         action="store_true",
         default=False,
+    )
+    parser.add_argument(
+        "--delay",
+        help="Minimum delay in seconds between Metron API calls.",
+        type=non_negative_float,
+        default=None,
     )
     parser.add_argument(
         "--missing",

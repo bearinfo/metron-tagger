@@ -756,6 +756,9 @@ class Runner:
                 self.config["metron.password"],
                 self.args.metroninfo,
                 self.args.comicinfo,
+                self.args.delay
+                if self.args.delay is not None
+                else self.config.get("metron.api_call_delay", 0.0),
             )
             if self.args.id and len(file_list) == 1:
                 # Single file with --id: interpret as issue ID

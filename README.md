@@ -47,7 +47,7 @@ The optional dependencies are:
 ## Help
 
 ```
-usage: metron-tagger [-h] [-r] [-o] [-m] [-c] [--id ID] [-d] [--ignore-existing] [--accept-only] [--missing] [-s] [-z] [--validate] [--remove-non-valid] [--delete-original] [--duplicates] [--migrate] [--version]
+usage: metron-tagger [-h] [-r] [-o] [-m] [-c] [--id ID] [-d] [--ignore-existing] [--ignore-tagged] [--accept-only] [--skip-multiple] [--delay DELAY] [--missing] [-s] [-z] [--validate] [--remove-non-valid] [--delete-original] [--duplicates] [--migrate] [--version]
                    path [path ...]
 
 Read in a file or set of files, and return the result.
@@ -64,8 +64,10 @@ options:
   --id ID              Identify file for tagging with the Metron Issue Id, or restrict directory matches to issues from a specific Metron Series Id. (default: None)
   -d, --delete         Delete the metadata tags from the file. (default: False)
   --ignore-existing    Ignore files that have existing metadata tag. (default: False)
+  --ignore-tagged      Ignore files that have metadata with valid info source IDs (e.g. Metron or Comic Vine). (default: False)
   --accept-only        Automatically accept the match when exactly one valid match is found. (default: False)
   --skip-multiple      Skip files that have multiple matches instead of prompting for selection. (default: False)
+  --delay DELAY        Minimum delay in seconds between Metron API calls. (default: None)
   --missing            List files without metadata. (default: False)
   -s, --sort           Sort files that contain metadata tags. (default: False)
   -z, --export-to-cbz  Export a CBR (rar) archive to a CBZ (zip) archive. (default: False)
@@ -84,6 +86,18 @@ one:
 
 ```
 metron-tagger -om --ignore-existing /path/to/comics
+```
+
+To only re-tag comics that don't already have a Metron or Comic Vine source ID:
+
+```
+metron-tagger -om --ignore-tagged /path/to/comics
+```
+
+To slow down Metron API requests by 2 seconds between calls:
+
+```
+metron-tagger -om --delay 2 /path/to/comics
 ```
 
 To remove any ComicInfo.xml from a directory of comics:

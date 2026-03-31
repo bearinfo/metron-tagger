@@ -23,6 +23,10 @@ from metrontagger.options import make_parser
             {"online": True, "path": ["/path/to/comic.cbz"]},
         ),
         (
+            ["--delay", "1.25", "/path/to/comic.cbz"],
+            {"delay": 1.25, "path": ["/path/to/comic.cbz"]},
+        ),
+        (
             ["--metroninfo", "/path/to/comic.cbz"],
             {"metroninfo": True, "path": ["/path/to/comic.cbz"]},
         ),
@@ -38,6 +42,7 @@ from metrontagger.options import make_parser
                 "12345",
                 "--delete",
                 "--ignore-existing",
+                "--ignore-tagged",
                 "--missing",
                 "--sort",
                 "--export-to-cbz",
@@ -56,6 +61,7 @@ from metrontagger.options import make_parser
                 "id": 12345,
                 "delete": True,
                 "ignore_existing": True,
+                "ignore_tagged": True,
                 "missing": True,
                 "sort": True,
                 "export_to_cbz": True,
@@ -72,6 +78,7 @@ from metrontagger.options import make_parser
         "happy_path_multiple_files",
         "happy_path_rename",
         "happy_path_online",
+        "happy_path_delay",
         "happy_path_metroninfo",
         "happy_path_all_options",
     ],
@@ -87,3 +94,11 @@ def test_make_parser(cli_args, expected_values):
         args = parser.parse_args(cli_args)
         for key, value in expected_values.items():
             assert getattr(args, key) == value
+
+
+def test_make_parser_rejects_negative_delay():
+    """Test that negative delay values are rejected."""
+    parser = make_parser()
+
+    with pytest.raises(SystemExit):
+        parser.parse_args(["--delay", "-1", "/path/to/comic.cbz"])
