@@ -24,6 +24,7 @@ def init_logging() -> None:
     """
     formatter = logging.Formatter(LOG_FMT, style="{", datefmt=DATE_FMT)
     log_path = get_settings_folder() / "metron-tagger.log"
+    log_path.parent.mkdir(parents=True, exist_ok=True)
     handler = logging.FileHandler(str(log_path))
     handler.setFormatter(formatter)
     basicConfig(level=logging.WARNING, handlers=[handler])
